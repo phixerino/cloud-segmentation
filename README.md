@@ -1,0 +1,90 @@
+# cloud-segmentation
+
+Cloud segmentation on satellite images from [Sentinel-2 Cloud Mask Catalogue](https://zenodo.org/record/4172871), written in PyTorch. DataLoader is implemented for
+binary segmentation with CLOUD and CLEAR/CLOUD_SHADOW classes. Training script is also capable of multiclass segmentation, but DataLoader would have to be modified.
+By default this repo assumes 4 (RGB + NIR) channels, but this can be changed through arguments/config.
+
+
+## Install
+
+```
+pip install -r requirements.txt
+```
+
+or build docker image and run container with:
+
+```
+make build
+make
+```
+You might have to change base image according to your CUDA and cuDNN versions. If you want to do training, then also change *LOCAL_DATASET* in Makefile to your
+dataset path.
+
+
+## Inference
+
+Inference is accelerated with ONNX Runtime. You can download model [here](https://drive.google.com/file/d/1zmts8KjmRG1_OjfjsPTdGunr93KtDCge/view?usp=share_link)
+and then run inference:
+
+```
+python inference.py --model DeepLabV3Plus_resnet101_1678875226.onnx --source data/test_subscene.npy --save --out_folder data/preds/
+```
+
+Predicted masks will be saved in *out_folder*. You can also plot masks with *--show*. 
+
+Short example of how to do inference in Google Colab is in 
+[notebooks/sentinel_segmentation_inference.ipynb](https://github.com/phixerino/cloud-segmentation/blob/main/notebooks/sentinel_segmentation_inference.ipynb)
+
+
+## Training
+Download and unzip [subscenes.zip](https://zenodo.org/record/4172871/files/subscenes.zip?download=1) and
+[masks.zip](https://zenodo.org/record/4172871/files/masks.zip?download=1) to your dataset path. This path can be changed in
+[cfg/config.json](https://github.com/phixerino/cloud-segmentation/blob/main/cfg/config.json) under *dataset_path*.
+
+Modify [cfg/config.json](https://github.com/phixerino/cloud-segmentation/blob/main/cfg/config.json) to your liking and run:
+```
+python train.py
+```
+You can also override any setting through command-line arguments without modifying the config file, for example:
+```
+python3 train.py --epochs 100 --batch_size 128 --lr 0.01 --optimizer AdamW --scheduler cos --warmup_epochs 5 --decoder_name UnetPlusPlus --encoder_name resnet50 --loss CE --no_wandb_log
+```
+Example of training process:
+
+<img src="https://github.com/phixerino/cloud-segmentation/blob/main/data/W%26B%20Chart%203_15_2023%2C%207_39_14%20PM.png" width="500" height="300">
+<img src="https://github.com/phixerino/cloud-segmentation/blob/main/data/W%26B%20Chart%203_15_2023%2C%207_39_28%20PM.png" width="500" height="300">
+<img src="https://github.com/phixerino/cloud-segmentation/blob/main/data/W%26B%20Chart%203_15_2023%2C%207_39_22%20PM.png" width="500" height="300"> 
+
+Training on multiple GPUs could be faster with:
+```
+torchrun --standalone --nproc_per_node 2 train.py
+```
+but DDP isn't working properly for now.
+
+
+## Export
+
+After training, the PyTorch model can be exported to ONNX with:
+```
+python export.py --model_file weights/my_model.pt
+```
+
+## Training protocol
+
+The [DeepLabV3+ model with ResNet101 encoder](https://drive.google.com/file/d/1zmts8KjmRG1_OjfjsPTdGunr93KtDCge/view?usp=share_link) was trained with these settings:
+- pretrained encoder on ImageNet
+- 9:1 train/val split
+- 50 epochs
+- 20 epochs early stop
+- 64 batch size
+- AdamW optimizezr
+- 0.0005 learning rate
+- 0.005 weight decay
+- 3 linear warmup epochs
+- linear lr scheduler
+- Dice loss
+- mean IoU val metric
+- augmentations: rotate (max 60 degrees, probability 0.5), horizontal flip (probability 0.5), vertical flip (probability 0.5)
+
+Best validation mIoU was 86.43.
+
