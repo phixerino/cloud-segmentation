@@ -41,6 +41,15 @@ Download and unzip [subscenes.zip](https://zenodo.org/record/4172871/files/subsc
 [masks.zip](https://zenodo.org/record/4172871/files/masks.zip?download=1) to your dataset path. This path can be changed in
 [cfg/config.json](https://github.com/phixerino/cloud-segmentation/blob/main/cfg/config.json) under *dataset_path*.
 
+### Data loading
+
+Images can be loaded with different tiling strategies by changing these settings:
+- subscene_width, subscene_height - manually resize subscenes and masks before tiling
+- train_tile_stride_x, train_tile_stride_y, val_tile_stride_x, val_tile_stride_y - lower stride than tile height/width will lead to overlap
+- train_scale, val_scale - automatically scale subscenes and masks so that tiles fit the entire image. This is done after manual resizing with subscene_width/subscene_height. Allowed values are [None, 'down', 'up']
+
+### Train
+
 Modify [cfg/config.json](https://github.com/phixerino/cloud-segmentation/blob/main/cfg/config.json) to your liking and run:
 ```
 python train.py
@@ -54,27 +63,8 @@ Example of training progress:
 
 <img src="https://github.com/phixerino/cloud-segmentation/blob/main/data/W%26B%20Chart%203_15_2023%2C%2010_21_04%20PM.png" width="375" height="225"> <img src="https://github.com/phixerino/cloud-segmentation/blob/main/data/W%26B%20Chart%203_15_2023%2C%2010_20_05%20PM.png" width="375" height="225"> <img src="https://github.com/phixerino/cloud-segmentation/blob/main/data/W%26B%20Chart%203_15_2023%2C%2010_20_19%20PM.png" width="375" height="225"> <img src="https://github.com/phixerino/cloud-segmentation/blob/main/data/W%26B%20Chart%203_15_2023%2C%2010_22_12%20PM.png" width="375" height="225">
 
-Training on multiple GPUs could be faster with:
-```
-torchrun --standalone --nproc_per_node 2 train.py
-```
-but DDP isn't working properly for now.
 
-### Data loading
-
-Images can be loaded with different tiling strategies by changing these settings:
-- subscene_width, subscene_height - manually resize subscenes and masks before tiling
-- train_tile_stride_x, train_tile_stride_y, val_tile_stride_x, val_tile_stride_y - lower stride than tile height/width will lead to overlap
-- train_scale, val_scale - automatically scale subscenes and masks so that tiles fit the entire image. This is done after manual resizing with subscene_width/subscene_height. Allowed values are [None, 'down', 'up']
-
-## Export
-
-After training, the PyTorch model can be exported to ONNX with:
-```
-python export.py --model_file weights/my_model.pt
-```
-
-## Results
+### Results
 
 | Model | mIoU |
 | --- | --- |
@@ -95,3 +85,22 @@ The [DeepLabV3+ model with ResNet101 encoder](https://drive.google.com/file/d/1H
 - Dice loss
 - mean IoU val metric
 - augmentations: rotation (max 60 degrees, probability 0.5), horizontal flip (probability 0.5), vertical flip (probability 0.5)
+
+
+### TODO
+- Resume training
+- Automated hyperparameter tuning
+- DistributedDataParallel (DDP) training
+
+DDP can be enabled, but it's not working properly for now:
+```
+torchrun --standalone --nproc_per_node 2 train.py
+```
+
+
+## Export
+
+After training, the PyTorch model can be exported to ONNX with:
+```
+python export.py --model_file weights/my_model.pt
+```
