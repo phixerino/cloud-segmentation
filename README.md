@@ -23,11 +23,11 @@ dataset path.
 
 ## Inference
 
-Inference is accelerated with ONNX Runtime. You can download model [here](https://drive.google.com/file/d/1zmts8KjmRG1_OjfjsPTdGunr93KtDCge/view?usp=share_link)
+Inference is accelerated with ONNX Runtime. You can download model [here](https://drive.google.com/file/d/1HLpewT9vKwMc9Vy4IJ9f3OteqqAy_oi5/view?usp=share_link)
 and then run inference:
 
 ```
-python inference.py --model DeepLabV3Plus_resnet101_1678875226.onnx --source data/test_subscene.npy --save --out_folder data/preds/
+python inference.py --model DeepLabV3Plus_resnet101_1678896432.onnx --source data/test_subscene.npy --save --out_folder data/preds/
 ```
 
 Predicted masks will be saved in *out_folder*. You can also plot masks with *--show*. 
@@ -71,7 +71,7 @@ python export.py --model_file weights/my_model.pt
 
 ## Training protocol
 
-The [DeepLabV3+ model with ResNet101 encoder](https://drive.google.com/file/d/1zmts8KjmRG1_OjfjsPTdGunr93KtDCge/view?usp=share_link) was trained with these settings:
+The [DeepLabV3+ model with ResNet101 encoder](https://drive.google.com/file/d/1HLpewT9vKwMc9Vy4IJ9f3OteqqAy_oi5/view?usp=share_link) was trained with these settings:
 - pretrained encoder on ImageNet
 - 9:1 train/val split
 - 50 epochs
