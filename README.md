@@ -49,6 +49,7 @@ You can also override any setting through command-line arguments without modifyi
 ```
 python3 train.py --epochs 100 --batch_size 128 --lr 0.01 --optimizer AdamW --scheduler cos --warmup_epochs 5 --decoder_name UnetPlusPlus --encoder_name resnet50 --loss CE --no_wandb_log
 ```
+
 Example of training progress:
 
 <img src="https://github.com/phixerino/cloud-segmentation/blob/main/data/W%26B%20Chart%203_15_2023%2C%207_39_14%20PM.png" width="500" height="300">
@@ -61,6 +62,12 @@ torchrun --standalone --nproc_per_node 2 train.py
 ```
 but DDP isn't working properly for now.
 
+### Data loading
+
+Images can be loaded with different tiling strategies by changing these settings:
+- subscene_width, subscene_height - manually resize subscenes and masks before tiling
+- train_tile_stride_x, train_tile_stride_y, val_tile_stride_x, val_tile_stride_y - lower stride than tile height/width will lead to overlap
+- train_scale, val_scale - automatically scale subscenes and masks so that tiles fit the entire image. This is done after manual resizing with subscene_width/subscene_height. Allowed values are [None, 'down', 'up']
 
 ## Export
 
