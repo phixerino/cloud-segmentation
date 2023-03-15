@@ -1,0 +1,6 @@
+onnx
+onnxruntime-gpu
+wandb
+opencv-python-headless
+albumentations
+segmentation-models-pytorch
