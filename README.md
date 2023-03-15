@@ -76,7 +76,12 @@ After training, the PyTorch model can be exported to ONNX with:
 python export.py --model_file weights/my_model.pt
 ```
 
-## Training protocol
+## Results
+
+| Model | mIoU |
+| --- | --- |
+| DeepLabV3+ with ResNet101 | 86.43 |
+| Unet++ with ResNet101 | 84.55 |
 
 The [DeepLabV3+ model with ResNet101 encoder](https://drive.google.com/file/d/1HLpewT9vKwMc9Vy4IJ9f3OteqqAy_oi5/view?usp=share_link) was trained with these settings:
 - pretrained encoder on ImageNet
@@ -92,6 +97,3 @@ The [DeepLabV3+ model with ResNet101 encoder](https://drive.google.com/file/d/1H
 - Dice loss
 - mean IoU val metric
 - augmentations: rotation (max 60 degrees, probability 0.5), horizontal flip (probability 0.5), vertical flip (probability 0.5)
-
-Best validation mIoU was 86.43.
-
