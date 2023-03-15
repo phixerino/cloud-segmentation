@@ -52,9 +52,7 @@ python3 train.py --epochs 100 --batch_size 128 --lr 0.01 --optimizer AdamW --sch
 
 Example of training progress:
 
-<img src="https://github.com/phixerino/cloud-segmentation/blob/main/data/W%26B%20Chart%203_15_2023%2C%207_39_14%20PM.png" width="500" height="300">
-<img src="https://github.com/phixerino/cloud-segmentation/blob/main/data/W%26B%20Chart%203_15_2023%2C%207_39_28%20PM.png" width="500" height="300">
-<img src="https://github.com/phixerino/cloud-segmentation/blob/main/data/W%26B%20Chart%203_15_2023%2C%207_39_22%20PM.png" width="500" height="300"> 
+<img src="https://github.com/phixerino/cloud-segmentation/blob/main/data/W%26B%20Chart%203_15_2023%2C%2010_21_04%20PM.png" width="500" height="300"> <img src="https://github.com/phixerino/cloud-segmentation/blob/main/data/W%26B%20Chart%203_15_2023%2C%2010_20_05%20PM.png" width="500" height="300"> <img src="https://github.com/phixerino/cloud-segmentation/blob/main/data/W%26B%20Chart%203_15_2023%2C%2010_20_19%20PM.png" width="500" height="300"> <img src="https://github.com/phixerino/cloud-segmentation/blob/main/data/W%26B%20Chart%203_15_2023%2C%2010_22_12%20PM.png" width="500" height="300">
 
 Training on multiple GPUs could be faster with:
 ```
