@@ -49,7 +49,7 @@ You can also override any setting through command-line arguments without modifyi
 ```
 python3 train.py --epochs 100 --batch_size 128 --lr 0.01 --optimizer AdamW --scheduler cos --warmup_epochs 5 --decoder_name UnetPlusPlus --encoder_name resnet50 --loss CE --no_wandb_log
 ```
-Example of training process:
+Example of training progress:
 
 <img src="https://github.com/phixerino/cloud-segmentation/blob/main/data/W%26B%20Chart%203_15_2023%2C%207_39_14%20PM.png" width="500" height="300">
 <img src="https://github.com/phixerino/cloud-segmentation/blob/main/data/W%26B%20Chart%203_15_2023%2C%207_39_28%20PM.png" width="500" height="300">
@@ -84,7 +84,7 @@ The [DeepLabV3+ model with ResNet101 encoder](https://drive.google.com/file/d/1z
 - linear lr scheduler
 - Dice loss
 - mean IoU val metric
-- augmentations: rotate (max 60 degrees, probability 0.5), horizontal flip (probability 0.5), vertical flip (probability 0.5)
+- augmentations: rotation (max 60 degrees, probability 0.5), horizontal flip (probability 0.5), vertical flip (probability 0.5)
 
 Best validation mIoU was 86.43.
 
