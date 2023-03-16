@@ -79,7 +79,7 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--model_file', type=str, required=True)
+    parser.add_argument('-m', '--model_file', '--model', type=str, required=True)
     args = parser.parse_args()
 
     if not os.path.isfile(args.model_file):

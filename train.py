@@ -1,30 +1,23 @@
 import os
 import argparse
-import functools
 import json
+import time
+import math
+import functools
+import numpy as np
+from tqdm import tqdm
 import wandb
 import torch
 from torch.utils.data import DataLoader
-from torch.utils.data.distributed import DistributedSampler
-from torchvision import transforms
-from torch.nn.parallel import DistributedDataParallel as DDP
 import torch.nn.functional as F
-from datasets import Sentinel2Dataset
-import time
-import math
-from tqdm import tqdm
+from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.utils.data.distributed import DistributedSampler
 import albumentations as A
 from albumentations.pytorch.transforms import ToTensorV2
 import segmentation_models_pytorch as smp
-import numpy as np
+from datasets import Sentinel2Dataset
 from utils.metrics import mean_intersection_over_union
-
-
-class AttrDict(dict):
-    """Class that acts like a dictionary + items can be accessed by attribute"""
-    def __init__(self, *args, **kwargs):
-        super(AttrDict, self).__init__(*args, **kwargs)
-        self.__dict__ = self
+from utils.utils import AttrDict
 
 
 def train_epoch(model, data_loader, loss_fn, optimizer, scaler, scheduler, dataset_len, device):
@@ -314,8 +307,8 @@ if __name__ == '__main__':
     parser.add_argument('--early_stop_epochs', type=int)
 
     # model settings
-    parser.add_argument('--decoder_name', type=str, help='Model architecture, e.g. "Unet", "UnetPlusPlus", "DeepLabV3", "DeepLabV3Plus"')
-    parser.add_argument('--encoder_name', type=str, help='Architecture of encoder, e.g. "resnet50". All available architectures can be found through segmentation_models_pytorch module:' \
+    parser.add_argument('--decoder_name', '--decoder', type=str, help='Model architecture, e.g. "Unet", "UnetPlusPlus", "DeepLabV3", "DeepLabV3Plus"')
+    parser.add_argument('--encoder_name', '--encoder', type=str, help='Architecture of encoder, e.g. "resnet50". All available architectures can be found through segmentation_models_pytorch module:' \
                                                         '"segmentation_models_pytorch.encoders.encoders.keys()"')
     parser.add_argument('--num_classes', type=int, help='1 class is binary output, so 2 classes')
     parser.add_argument('--loss_fn_name', '--loss', type=str, choices=['CE', 'Dice'])
