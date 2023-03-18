@@ -37,11 +37,12 @@ Short example of how to do inference in Google Colab is in
 
 
 ## Training
+If you want to use this repo for training your own dataset, then write your own *torch.utils.data.Dataset* and training/export/inference should still work.
+
+### Sentinel-2 Cloud Mask Catalogue data loading
 Download and unzip [subscenes.zip](https://zenodo.org/record/4172871/files/subscenes.zip?download=1) and
 [masks.zip](https://zenodo.org/record/4172871/files/masks.zip?download=1) to your dataset path. This path can be changed in
 [cfg/config.json](https://github.com/phixerino/cloud-segmentation/blob/main/cfg/config.json) under *dataset_path*.
-
-### Data loading
 
 Images can be loaded with different tiling strategies by changing these settings:
 - subscene_width, subscene_height - manually resize subscenes and masks before tiling
