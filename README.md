@@ -1,12 +1,10 @@
 # cloud-segmentation
 
 Cloud segmentation on satellite images from [Sentinel-2 Cloud Mask Catalogue](https://zenodo.org/record/4172871), written in PyTorch. DataLoader is implemented for
-binary segmentation with CLOUD and CLEAR/CLOUD_SHADOW classes. Training script is also capable of multiclass segmentation, but DataLoader would have to be modified.
-By default this repo assumes 4 (RGB + NIR) channels, but this can be changed through arguments/config.
+binary segmentation with CLOUD and CLEAR/CLOUD_SHADOW classes. By default this repo assumes 4 (RGB + NIR) channels, but this can be changed through arguments/config.
 
 
 ## Install
-
 ```
 pip install -r requirements.txt
 ```
@@ -22,7 +20,6 @@ dataset path.
 
 
 ## Inference
-
 Inference is accelerated with ONNX Runtime. You can download model [here](https://drive.google.com/file/d/1HLpewT9vKwMc9Vy4IJ9f3OteqqAy_oi5/view?usp=share_link)
 and then run inference:
 
@@ -37,20 +34,21 @@ Short example of how to do inference in Google Colab is in
 
 
 ## Training
-If you want to use this repo for training your own dataset, then write your own *torch.utils.data.Dataset* and training/export/inference should still work.
 
-### Sentinel-2 Cloud Mask Catalogue data loading
+### TODO: Custom dataset
+
+### Sentinel-2 Cloud Mask Catalogue
 Download and unzip [subscenes.zip](https://zenodo.org/record/4172871/files/subscenes.zip?download=1) and
 [masks.zip](https://zenodo.org/record/4172871/files/masks.zip?download=1) to your dataset path. This path can be changed in
 [cfg/config.json](https://github.com/phixerino/cloud-segmentation/blob/main/cfg/config.json) under *dataset_path*.
 
+### Data loading
 Images can be loaded with different tiling strategies by changing these settings:
 - subscene_width, subscene_height - manually resize subscenes and masks before tiling
 - train_tile_stride_x, train_tile_stride_y, val_tile_stride_x, val_tile_stride_y - lower stride than tile height/width will lead to overlap
 - train_scale, val_scale - automatically scale subscenes and masks so that tiles fit the entire image. This is done after manual resizing with subscene_width/subscene_height. Allowed values are [None, 'down', 'up']
 
 ### Train
-
 Modify [cfg/config.json](https://github.com/phixerino/cloud-segmentation/blob/main/cfg/config.json) to your liking and run:
 ```
 python train.py
@@ -64,9 +62,7 @@ Example of training progress:
 
 <img src="https://github.com/phixerino/cloud-segmentation/blob/main/data/W%26B%20Chart%203_15_2023%2C%2010_21_04%20PM.png" width="375" height="225"> <img src="https://github.com/phixerino/cloud-segmentation/blob/main/data/W%26B%20Chart%203_15_2023%2C%2010_20_05%20PM.png" width="375" height="225"> <img src="https://github.com/phixerino/cloud-segmentation/blob/main/data/W%26B%20Chart%203_15_2023%2C%2010_20_19%20PM.png" width="375" height="225"> <img src="https://github.com/phixerino/cloud-segmentation/blob/main/data/W%26B%20Chart%203_15_2023%2C%2010_22_12%20PM.png" width="375" height="225">
 
-
 ### Results
-
 | Model | mIoU |
 | --- | --- |
 | DeepLabV3+ with ResNet101 | 86.43 |
@@ -87,8 +83,8 @@ The [DeepLabV3+ model with ResNet101 encoder](https://drive.google.com/file/d/1H
 - mean IoU val metric
 - augmentations: rotation (max 60 degrees, probability 0.5), horizontal flip (probability 0.5), vertical flip (probability 0.5)
 
-
 ### TODO
+- Multi-class segmentation
 - Resume training
 - Automated hyperparameter tuning
 - DistributedDataParallel (DDP) training
@@ -100,7 +96,6 @@ torchrun --standalone --nproc_per_node 2 train.py
 
 
 ## Export
-
 After training, the PyTorch model can be exported to ONNX with:
 ```
 python export.py --model_file weights/my_model.pt
