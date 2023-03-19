@@ -27,7 +27,7 @@ and then run inference:
 python inference.py --model DeepLabV3Plus_resnet101_1678896432.onnx --source data/test_subscene.npy --save --out_folder data/preds/
 ```
 
-Predicted masks will be saved in *out_folder*. You can also plot masks with *--show*. 
+Predicted masks will be saved in *out_folder*. You can also plot masks with `--show`. 
 
 Short example of how to do inference in Google Colab is in 
 [notebooks/sentinel_segmentation_inference.ipynb](https://github.com/phixerino/cloud-segmentation/blob/main/notebooks/sentinel_segmentation_inference.ipynb)
@@ -56,6 +56,10 @@ python train.py
 You can also override any setting through command-line arguments without modifying the config file, for example:
 ```
 python3 train.py --epochs 100 --batch_size 128 --lr 0.01 --optimizer AdamW --scheduler cos --warmup_epochs 5 --decoder_name UnetPlusPlus --encoder_name resnet50 --loss CE --no_wandb_log
+```
+If you want to utilize more GPUs, enable Distributed Data Parallel (DDP), where `--nproc_per_node` sets the number of GPUs:
+```
+torchrun --standalone --nproc_per_node 2 train.py
 ```
 
 Example of training progress:
@@ -87,12 +91,7 @@ The [DeepLabV3+ model with ResNet101 encoder](https://drive.google.com/file/d/1H
 - Multi-class segmentation
 - Resume training
 - Automated hyperparameter tuning
-- DistributedDataParallel (DDP) training
-
-DDP can be enabled, but it's not working properly for now:
-```
-torchrun --standalone --nproc_per_node 2 train.py
-```
+- Add more metrics
 
 
 ## Export
