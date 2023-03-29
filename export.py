@@ -58,7 +58,6 @@ def main(args):
     with open(config_file, 'r') as f:
         config = json.load(f)
 
-    # works only with torch (CUDAExecutionProvider is slower due to copying)
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
     # load pytorch model

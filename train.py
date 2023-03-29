@@ -4,9 +4,11 @@ import json
 import time
 import math
 import functools
+from copy import deepcopy
 import numpy as np
 from tqdm import tqdm
 import wandb
+
 import torch
 from torch.utils.data import DataLoader
 import torch.nn.functional as F
@@ -15,9 +17,11 @@ from torch.utils.data.distributed import DistributedSampler
 import albumentations as A
 from albumentations.pytorch.transforms import ToTensorV2
 import segmentation_models_pytorch as smp
+
 from datasets import Sentinel2Dataset
 from utils.metrics import mean_intersection_over_union
-from utils.utils import AttrDict
+from utils.general import AttrDict
+from utils.schedulers import CosineDecay, LinearDecay, NoneDecay
 
 
 def train_epoch(model, data_loader, loss_fn, optimizer, scaler, scheduler, dataset_len, device):
@@ -28,17 +32,18 @@ def train_epoch(model, data_loader, loss_fn, optimizer, scaler, scheduler, datas
         tiles = tiles.to(device)
         labels = labels.to(device)
 
+        scheduler.step()
+
         with torch.cuda.amp.autocast():
             preds = model(tiles)
             loss = loss_fn(preds, labels)
             running_loss += loss.item() * tiles.size(0)
             
-        optimizer.zero_grad()
+        optimizer.zero_grad(set_to_none=True)
         scaler.scale(loss).backward()  # loss.backward()
         scaler.step(optimizer)  # optimizer.step()
         scaler.update()
 
-    scheduler.step()
     epoch_loss = running_loss / dataset_len
 
     return epoch_loss
@@ -64,19 +69,18 @@ def val_epoch(model, data_loader, loss_fn, num_classes, metric_fn, dataset_len, 
             else:
                 preds_mask = torch.argmax(preds, dim=1)
                 preds_mask = F.one_hot(preds_mask, num_classes=num_classes).transpose(1, 3)  # same shape as model output
-            preds_mask_np = preds_mask.detach().cpu().numpy()
-            labels_np = labels.cpu().numpy()
-            metric = metric_fn(preds_mask_np, labels_np)
+            
+            metric = metric_fn(preds_mask, labels).item()
             running_metric += metric * labels.size(0)
 
-        epoch_loss = running_loss / dataset_len
-        epoch_metric = running_metric / dataset_len
+    epoch_loss = running_loss / dataset_len
+    epoch_metric = running_metric / dataset_len
 
-        return epoch_loss, epoch_metric
+    return epoch_loss, epoch_metric
 
 
 def train(epochs_num, model, train_loader, val_loader, loss_fn, metric_fn, optimizer, scaler, scheduler, num_classes, train_dataset_len, val_dataset_len,
-        master_process=True, ddp=False, wandb_log=False, early_stop_epochs=None, model_filepath='model.pt', config=None, device='cuda:0'):
+        master_process=True, ddp=False, wandb_log=False, early_stop_patience=0, model_filepath='model.pt', config=None, device='cuda:0'):
     
     loss_name, metric_name = 'loss', 'metric'
     if isinstance(loss_fn, dict):
@@ -89,8 +93,9 @@ def train(epochs_num, model, train_loader, val_loader, loss_fn, metric_fn, optim
     checkpoint = None
     best_val_metric = 0
     best_epoch = 0
-    early_stop_count = 0
-    if not early_stop_epochs: early_stop_epochs = epochs_num
+    early_stop_counter = 0
+    if not early_stop_patience: 
+        early_stop_patience = epochs_num
     for epoch in range(epochs_num):
         if master_process:
             print(f'Epoch {epoch+1}')
@@ -119,13 +124,13 @@ def train(epochs_num, model, train_loader, val_loader, loss_fn, metric_fn, optim
             if val_epoch_metric > best_val_metric:
                 best_val_metric = val_epoch_metric
                 best_epoch = epoch
-                checkpoint = model.state_dict()
-                early_stop_count = 0
+                early_stop_counter = 0
+                checkpoint = deepcopy(model.state_dict())
             else:
-                early_stop_count += 1
-            if early_stop_count == early_stop_epochs:
-                print('Early stopping')
-                break
+                early_stop_counter += 1
+                if early_stop_counter == early_stop_patience:
+                    print('Early stopping')
+                    break
 
     if master_process:
         print(f'Best metric in epoch {best_epoch+1} {best_val_metric:.4f}')
@@ -133,7 +138,8 @@ def train(epochs_num, model, train_loader, val_loader, loss_fn, metric_fn, optim
         if checkpoint:
             if not wandb_log:
                 model_filename, model_ext = os.path.splitext(model_filepath)
-                model_filepath = f'{model_filename}_{"{:4f}".format(best_val_metric).replace(".", ",")}{model_ext}'
+                val_metric_str = "{:4f}".format(best_val_metric).replace(".", ",")
+                model_filepath = f'{model_filename}_{val_metric_str}{model_ext}'
             torch.save(checkpoint, model_filepath)
             print(f'Model saved to {model_filepath}')
             if config:
@@ -235,16 +241,18 @@ def main(config):
     scaler = torch.cuda.amp.GradScaler()
 
     # lr scheduler
-    available_schedulers = ['cos', 'linear']
-    if config.lr_scheduler_name == 'cos':  # cosinus with linear warmup
-        lr_lambda = lambda epoch: ((1 - math.cos((epoch-config.warmup_epochs+1) * math.pi / (config.epochs_num-config.warmup_epochs))) / 2) * (config.lr_final - 1) + 1 \
-                                    if epoch >= config.warmup_epochs else np.interp(epoch, [0, config.warmup_epochs-1], [1./config.warmup_epochs, 1.])
+    epoch_iterations = len(train_loader)
+    warmup_iterations = epoch_iterations * config.warmup_epochs
+    decay_iterations = epoch_iterations * config.epochs_num
+    available_schedulers = ['cos', 'linear', None]
+    if config.lr_scheduler_name == 'cos':  # cosine with linear warmup
+        scheduler = CosineDecay(optimizer, config.learning_rate, warmup_iterations, decay_iterations, config.lr_start_coeff, config.lr_final_coeff)
     elif config.lr_scheduler_name == 'linear':  # linear with linear warmup
-        lr_lambda = lambda epoch: (1 - (epoch-config.warmup_epochs+1) / (config.epochs_num-config.warmup_epochs)) * (1.0 - config.lr_final) + config.lr_final \
-                                    if epoch >= config.warmup_epochs else np.interp(epoch, [0, config.warmup_epochs-1], [1./config.warmup_epochs, 1.])
+        scheduler = LinearDecay(optimizer, config.learning_rate, warmup_iterations, decay_iterations, config.lr_start_coeff, config.lr_final_coeff)
+    elif config.lr_scheduler_name is None:
+        scheduler = NoneDecay(optimizer, config.learning_rate, lr_start_coeff=1.0, lr_final_coeff=1.0)
     else:
         raise Exception(f'Learning rate scheduler {config.lr_scheduler_name} isnt supported. Choose one of the following: {available_schedulers}')
-    scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_lambda)
 
     # save and logging
     os.makedirs(config.model_folder, exist_ok=True)
@@ -257,7 +265,7 @@ def main(config):
 
     # training
     train(config.epochs_num, model, train_loader, val_loader, loss_dict, metric_dict, optimizer, scaler, scheduler, config.num_classes, len(train_dataset), len(val_dataset),
-            master_process, ddp, config.wandb_log, config.early_stop_epochs, model_filepath, config, device)
+            master_process, ddp, config.wandb_log, config.early_stop_patience, model_filepath, config, device)
 
 
 if __name__ == '__main__':
@@ -301,17 +309,18 @@ if __name__ == '__main__':
     parser.add_argument('--momentum', type=float)
     parser.add_argument('--weight_decay', type=float)
     parser.add_argument('--optimizer_name', '--optimizer', type=str, choices=['Adam', 'AdamW', 'AMSGrad', 'SGD', 'Nesterov'])
-    parser.add_argument('--lr_scheduler_name', '--scheduler', type=str, choices=['linear', 'cos'])
-    parser.add_argument('--lr_final', type=float, help='learning rate will reach learning_rate*lr_final at the end of the training')
+    parser.add_argument('--lr_scheduler_name', '--scheduler', type=str, choices=['linear', 'cos', None])
+    parser.add_argument('--lr_final_coeff', type=float, help='If lr scheduler is enabled, then learning rate will reach learning_rate*lr_final_coeff at the last epoch.')
+    parser.add_argument('--lr_start_coeff', type=float, help='If warmup is enabled, then learning rate will begin at learning_rate*lr_start_coeff and then increase linearly to learning_rate.')
     parser.add_argument('--warmup_epochs', type=int, help='Linear learning rate warmup')
-    parser.add_argument('--early_stop_epochs', type=int)
+    parser.add_argument('--early_stop_patience', type=int)
 
     # model settings
     parser.add_argument('--decoder_name', '--decoder', type=str, help='Model architecture, e.g. "Unet", "UnetPlusPlus", "DeepLabV3", "DeepLabV3Plus"')
     parser.add_argument('--encoder_name', '--encoder', type=str, help='Architecture of encoder, e.g. "resnet50". All available architectures can be found through segmentation_models_pytorch module:' \
                                                         '"segmentation_models_pytorch.encoders.encoders.keys()"')
     parser.add_argument('--num_classes', type=int, help='1 class is binary output, so 2 classes')
-    parser.add_argument('--loss_fn_name', '--loss', type=str, choices=['CE', 'Dice'])
+    parser.add_argument('--loss_fn_name', '--loss_name', '--loss', type=str, choices=['CE', 'Dice'])
     parser.add_argument('--pretrained_encoder', action='store_true', default=None, help='Use pretrained encoder on ImageNet')
     parser.add_argument('--no_pretrained_encoder', action='store_false', dest='pretrained_encoder', help='Dont use pretrained encoder')
 

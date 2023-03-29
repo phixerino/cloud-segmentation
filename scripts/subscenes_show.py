@@ -21,3 +21,4 @@ for i, path in enumerate(os.listdir(dir_path)):
             cv2.destroyAllWindows()
             break
 print(f'Processed {i+1} imgs')
+

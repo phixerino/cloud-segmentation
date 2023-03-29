@@ -28,3 +28,4 @@ for it in tqdm(train_loader):
     zeros += (target==0.).sum((2,3)).type(torch.LongTensor).squeeze()
 total = ones + zeros
 print(f'Clear: {zeros} ({(zeros/total)*100:.2f}%), Cloud: {ones} ({(ones/total)*100:.2f}%)')
+

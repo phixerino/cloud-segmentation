@@ -9,3 +9,7 @@ COPY requirements.txt ./
 RUN pip install -r requirements.txt && rm requirements.txt
 
 WORKDIR /sentinel-segmentation
+
+ENV OMP_NUM_THREADS=1
+ENV PYTHONPATH=/sentinel-segmentation
+
