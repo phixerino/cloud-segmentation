@@ -24,6 +24,7 @@ from utils.general import AttrDict
 from utils.schedulers import CosineDecay, LinearDecay, NoneDecay
 
 
+
 def train_epoch(model, data_loader, loss_fn, optimizer, scaler, scheduler, dataset_len, device):
     model.train()
     
@@ -58,7 +59,6 @@ def val_epoch(model, data_loader, loss_fn, num_classes, metric_fn, dataset_len, 
         for (tiles, labels) in tqdm(data_loader):
             tiles = tiles.to(device)
             labels = labels.to(device)
-
             preds = model(tiles)
             loss = loss_fn(preds, labels)
             running_loss += loss * tiles.size(0)
@@ -68,7 +68,8 @@ def val_epoch(model, data_loader, loss_fn, num_classes, metric_fn, dataset_len, 
                 preds_mask = ((preds>threshold).float())
             else:
                 preds_mask = torch.argmax(preds, dim=1)
-                preds_mask = F.one_hot(preds_mask, num_classes=num_classes).transpose(1, 3)  # same shape as model output
+                preds_mask = F.one_hot(preds_mask, num_classes=num_classes).transpose(1, 3)  # Same shape as model output
+                labels = F.one_hot(labels, num_classes=num_classes).transpose(1, 3)     # Same shape as preds
             
             metric = metric_fn(preds_mask, labels).item()
             running_metric += metric * labels.size(0)
@@ -203,7 +204,7 @@ def main(config):
     else:
         raise Exception(f'Decoder with name {config.decoder_name} isnt supported. Choose one of the following: {available_archs}')
     model = model_class(encoder_name=config.encoder_name, encoder_weights='imagenet' if config.pretrained_encoder else None, in_channels=len(config.bands), classes=config.num_classes)
-    #print(model)
+    
     model.to(device)
     if ddp:
         model = DDP(model, device_ids=[ddp_local_rank])
@@ -223,6 +224,7 @@ def main(config):
     loss_dict = {'loss_name': config.loss_fn_name, 'loss_fn': loss_fn}
 
     # metric
+    print((config.num_classes==1))
     metric_fn = functools.partial(mean_intersection_over_union, binary=(config.num_classes==1))  # freeze binary argument to keep metric_fn general
     metric_dict = {'metric_name': 'mIoU', 'metric_fn': metric_fn}
 

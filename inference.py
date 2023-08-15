@@ -79,9 +79,8 @@ def get_tiles(source, tile_height, tile_width, bands, normalize_mean, normalize_
     else:
         raise FileNotFoundError(f'{source} doesnt exist.')
 
-
 def main(args):
-    binary_threshold = 0.5 if args.norm_out else 0.0
+    binary_threshold = 0.7 if args.norm_out else 0.0
     
     model = load_model(args.model)
     
@@ -91,12 +90,16 @@ def main(args):
         
         # postprocess
         if args.multiclass:
-            #TODO: dont have multiclass model to try this on yet
-            pred_img = None
-            raise Exception('Multiclass output isnt supported yet.')
+            #print("here")
+            #pred_img = torch.argmax(pred, dim=2)
+            pred_img = np.argmax(pred, axis=1)
+            pred_img = (pred_img).squeeze() * int(254/2)
         else:  # binary
             pred_img = (pred>binary_threshold).squeeze() * 255
+        #print(pred_img.shape)
 
+
+        
         if args.save or args.show:
             tile_name = f'{os.path.splitext(file_name)[0]}_{tile_id}'
             tile_img = np.copy(tile)
@@ -106,6 +109,23 @@ def main(args):
             pred_img = pred_img.astype(np.uint8)
             pred_img = cv2.cvtColor(pred_img, cv2.COLOR_GRAY2BGR)
             show_img = np.concatenate((tile_img, pred_img), axis=1)
+
+            #mask_path = "data/datasets/sentinel/masks/" + args.source.split("/")[-1]
+            #print(mask_path, tile_id)
+            
+            if args.mask_comparison:
+                mask_path = "data/datasets/sentinel/masks/" + args.source.split("/")[-1]
+                dim_x = tile_id % 2
+                dim_y = tile_id // 2
+                res = 496
+                mask_img = np.load(mask_path)[dim_y*res:(dim_y+1)*res, dim_x*res:(dim_x+1)*res, :]
+                mask_img = np.argmax(mask_img, axis = 2) * 127
+                mask_img = mask_img.astype(np.uint8)
+                mask_img = cv2.cvtColor(mask_img, cv2.COLOR_GRAY2BGR)
+                print(mask_path, tile_id)
+                #mask_name = f'{os.path.splitext(file_name)[0]}_{tile_id}'
+                #mask_img = show_img
+                show_img = np.concatenate((show_img, mask_img), axis=1)
 
         if args.save:
             cv2.imwrite(os.path.join(args.out_folder, tile_name + '.png'), show_img)
@@ -122,8 +142,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--model', type=str, required=True, help='ONNX model path.')
     parser.add_argument('--source',type=str, default='data/', help='Input source, can be folder with image or numpy files or just a single file.')
-    parser.add_argument('--input_width', '--input_w', type=int, default=224)
-    parser.add_argument('--input_height', '--input_h', type=int, default=224)
+    parser.add_argument('--input_width', '--input_w', type=int, default=496)
+    parser.add_argument('--input_height', '--input_h', type=int, default=496)
     parser.add_argument('--bands', nargs='+', type=int, default=[3, 2, 1, 7], help='Image bands from source images to model input. Usage: --bands 3 2 1 7')
     parser.add_argument('--bands_post', nargs='+', type=int, default=[2, 1, 0], help='Image bands from model input to show/save (should be in BGR). Usage: --bands 2 1 0')
     parser.add_argument('--max_pixel_value', type=float, default=1., help='Maximum possible pixel value of input images.')
@@ -133,6 +153,7 @@ if __name__ == '__main__':
     parser.add_argument('--norm_out', action='store_true', help='Normalized model output (sigmoid, softmax).')
     parser.add_argument('--save', action='store_true', help='Save predicted mask as image.')
     parser.add_argument('--show', action='store_true', help='Show predicted masks.')
+    parser.add_argument('--mask_comparison', action='store_true', help='Show actual masks')
     parser.add_argument('--out_folder', type=str, default='data/preds/', help='Folder for predicted masks.')
     args = parser.parse_args()
    

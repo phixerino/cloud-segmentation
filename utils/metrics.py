@@ -2,6 +2,8 @@ import numpy as np
 
 from utils.general import add_dim, concat
 
+import torch.nn.functional as F
+
 
 def intersection_over_union(preds, labels, smooth=1e-1):
     intersection = (preds * labels).sum((2, 3))
@@ -10,9 +12,18 @@ def intersection_over_union(preds, labels, smooth=1e-1):
     class_iou = iou.mean(axis=0)
     return class_iou
 
-def mean_intersection_over_union(preds, labels, smooth=1e-1, binary=True):
+def intersection_over_union_2(preds, labels, smooth=1e-1):
+    intersection = (preds * labels).sum((2, 3))
+    union = (preds + labels).sum((2, 3)) - intersection
+    iou = (intersection + smooth) / (union + smooth)
+    class_iou = iou.mean(axis=0)
+    return class_iou
+
+def mean_intersection_over_union(preds, labels, smooth=1e-1, binary=False):
     dims_num = [3, 4]  # BHW or BCHW
     assert len(preds.shape) in dims_num and len(labels.shape) in dims_num
+
+    #print("shapes: ", preds.shape, labels.shape, binary)
     
     if len(preds.shape) == 3:
         preds = add_dim(preds, dim=1)
@@ -24,7 +35,7 @@ def mean_intersection_over_union(preds, labels, smooth=1e-1, binary=True):
     if binary:
         class2_iou = intersection_over_union(1 - preds, 1 - labels, smooth=smooth)
         class_iou = concat((class_iou, class2_iou))
-    
+        
     miou = class_iou.mean()
 
     return miou
