@@ -2,7 +2,6 @@ import numpy as np
 
 from utils.general import add_dim, concat
 
-
 def intersection_over_union(preds, labels, smooth=1e-1):
     intersection = (preds * labels).sum((2, 3))
     union = (preds + labels).sum((2, 3)) - intersection
@@ -10,7 +9,7 @@ def intersection_over_union(preds, labels, smooth=1e-1):
     class_iou = iou.mean(axis=0)
     return class_iou
 
-def mean_intersection_over_union(preds, labels, smooth=1e-1, binary=True):
+def process_intersection_over_union(preds, labels, smooth=1e-1, binary=False):
     dims_num = [3, 4]  # BHW or BCHW
     assert len(preds.shape) in dims_num and len(labels.shape) in dims_num
     
@@ -24,8 +23,10 @@ def mean_intersection_over_union(preds, labels, smooth=1e-1, binary=True):
     if binary:
         class2_iou = intersection_over_union(1 - preds, 1 - labels, smooth=smooth)
         class_iou = concat((class_iou, class2_iou))
-    
-    miou = class_iou.mean()
 
-    return miou
+    return class_iou
+
+def mean_intersection_over_union(preds, labels, smooth=1e-1, binary=False):
+    iou = process_intersection_over_union(preds, labels, smooth, binary)
+    return iou.mean()
 

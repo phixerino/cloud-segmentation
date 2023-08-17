@@ -9,8 +9,8 @@ import time
 
 class Sentinel2Dataset(Dataset):
     def __init__(self, dataset_path, train=True, split=0.9, transform=None, bands=None,
-            tile_height=224, tile_width=224, stride_x=199, stride_y=199,
-            subscene_height=1022, subscene_width=1022, scale=None, dataset_limit=None, debug=False):
+            tile_height=512, tile_width=512, stride_x=512, stride_y=512,
+            subscene_height=1022, subscene_width=1022, scale=None, dataset_limit=None, debug=False, binary=False):
         
         self.transform = transform
         self.debug = debug
@@ -18,7 +18,8 @@ class Sentinel2Dataset(Dataset):
         self.tile_width = tile_width
         self.dataset_limit = dataset_limit  # load only first X subscenes to train set to test overfitting
         self.subscene_height, self.subscene_width = subscene_height, subscene_width  # resize subscenes and masks to this shape
-
+        self.binary = binary
+    
         default_bands = [3, 2, 1, 7]  # R, G, B, NIR
         self.bands = bands if bands else default_bands
         
@@ -109,7 +110,8 @@ class Sentinel2Dataset(Dataset):
         if resize:
             # select channels
             subscene = subscene[..., self.bands]
-            mask = mask[..., 1]  # merging CLEAR and CLOUD_SHADOW classes to one
+            if self.binary: 
+                mask = mask[..., 1]  # merging CLEAR and CLOUD_SHADOW classes to one
             mask = mask * 1.
 
             # resize
@@ -119,18 +121,30 @@ class Sentinel2Dataset(Dataset):
             
             # create patch
             tile = subscene[tile_y:tile_y+self.tile_height, tile_x:tile_x+self.tile_width, :]
-            target = mask[tile_y:tile_y+self.tile_height, tile_x:tile_x+self.tile_width]
+            if self.binary:
+                target = mask[tile_y:tile_y+self.tile_height, tile_x:tile_x+self.tile_width]
+            else:
+                target = mask[tile_y:tile_y+self.tile_height, tile_x:tile_x+self.tile_width, :]
+                target = torch.argmax(torch.from_numpy(target), dim=-1).numpy()
         else:
             # select channels and create patch
             tile = subscene[tile_y:tile_y+self.tile_height, tile_x:tile_x+self.tile_width, self.bands]
-            target = mask[tile_y:tile_y+self.tile_height, tile_x:tile_x+self.tile_width, 1]
+            if self.binary:
+                target = mask[tile_y:tile_y+self.tile_height, tile_x:tile_x+self.tile_width, 1]
+            else:
+                mask = mask * 1.
+                target = mask[tile_y:tile_y+self.tile_height, tile_x:tile_x+self.tile_width, :]
+                target = torch.argmax(torch.from_numpy(target), dim=-1).numpy()
+
+        #print("Tile:", tile.shape)
+        #print("Target", target.shape)
 
         if self.debug:
             tile_debug = np.copy(tile)
             tile_debug = tile_debug[...,:3]  # RGB
             tile_debug = tile_debug[...,::-1]  # RGB to BGR
             tile_debug = cv2.normalize(tile_debug, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8U)  # normalize to 0-255 values
-            target_debug = target * 255  # to 0/255
+            target_debug = target * 127  # to 0/255
             print(idx, subscene_filepath)
             cv2.imwrite(os.path.join(self.debug_folder, f'{idx}_tile.jpg'), tile_debug)
             cv2.imwrite(os.path.join(self.debug_folder, f'{idx}_target.jpg'), target_debug)
@@ -142,10 +156,11 @@ class Sentinel2Dataset(Dataset):
             augmented = self.transform(image=tile, mask=target)
             tile = augmented['image']
             target = augmented['mask']
-            target = target.unsqueeze(0)
+            if self.binary:
+                target = target.unsqueeze(0)
         else:
             tile = tile.transpose(2, 0, 1)  # HWC to CHW, already done by ToTensorV2() in self.transform
             target = np.expand_dims(target, axis=0)
-
-        return tile, target
+        
+        return tile, target.long()
 

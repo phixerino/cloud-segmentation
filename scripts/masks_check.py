@@ -8,7 +8,7 @@ check for every pixel if cloud_pixel == (not clear_pixel and not cloud_shadow_pi
 
 show = True
 
-dir_path = '/data/jk/sentinel/masks/'
+dir_path = './data/datasets/sentinel/masks/'
 
 for i, path in enumerate(os.listdir(dir_path)):
     file_path = os.path.join(dir_path, path)
@@ -17,7 +17,7 @@ for i, path in enumerate(os.listdir(dir_path)):
         img = np.zeros((1022,1022), dtype=np.uint8)
         img_bool = np.load(file_path)
         img[np.where(img_bool[:, :, 0] == True)] = 255
-        img[np.where(img_bool[:, :, 1] == True)] = 0
+        img[np.where(img_bool[:, :, 1] == True)] = 127
         img[np.where(img_bool[:, :, 2] == True)] = 0
         img1 = np.where(img_bool[:, :, 1] == True, 255, 0)
         #assert np.array_equal(img, img1)
